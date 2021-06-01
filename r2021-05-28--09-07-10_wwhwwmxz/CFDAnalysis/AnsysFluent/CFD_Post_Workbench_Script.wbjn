@@ -1,0 +1,10 @@
+system1= GetSystem(Name="FFF")
+system1.Refresh()
+results1 = system1.GetContainer(ComponentName="Results")
+results1.Edit()
+results1.SendCommand(Command=r">readsession filename = C:/r2021-05-28--09-07-10_wwhwwmxz/CFDAnalysis/AnsysFluent/OpenMeta_CFDFluent_CFDPost_Script.cse")
+
+
+Save(
+    FilePath="C:/r2021-05-28--09-07-10_wwhwwmxz/CFDAnalysis/AnsysFluent/AnsysFluent_Workbench.wbpj",
+    Overwrite=True)

@@ -1,0 +1,372 @@
+# Session file started:  2021/05/24 10:26:52
+# CFX-21.1
+
+# To avoid unnecessary file pre-processing and modifications, include
+# COMMAND FILE at the top of your session file.
+# If it is not included, the file is assumed to be older and will be
+# modified for backward compatibility.
+COMMAND FILE:
+  CFX Post Version = 21.1
+END
+
+# Sending visibility action from ViewUtilities
+>show /DATA READER/CASE:Case FFF 1/BOUNDARY:wall enclosure_enclosure, view=/\
+VIEW:View 1
+
+VIEW:View 1
+  Camera Mode = User Specified
+  CAMERA:
+    Option = Pivot Point and Quaternion
+    Pivot Point = 0, 0.909008, 0
+    Scale = 0.502541
+    Pan = 0, 0
+    Rotation Quaternion = 0, 1, 0, 6.12323e-17
+  END
+
+END
+
+> update
+
+PLANE:Plane 1
+  Apply Instancing Transform = On
+  Apply Texture = Off
+  Blend Texture = On
+  Bound Radius = 0.5 [m]
+  Colour = 0.75, 0.75, 0.75
+  Colour Map = Default Colour Map
+  Colour Mode = Constant
+  Colour Scale = Linear
+  Colour Variable = Pressure
+  Colour Variable Boundary Values = Conservative
+  Culling Mode = No Culling
+  Direction 1 Bound = 1.0 [m]
+  Direction 1 Orientation = 0 [degree]
+  Direction 1 Points = 10
+  Direction 2 Bound = 1.0 [m]
+  Direction 2 Points = 10
+  Domain List = /DOMAIN GROUP:All Domains
+  Draw Contours = Off
+  Draw Faces = On
+  Draw Lines = Off
+  Instancing Transform = /DEFAULT INSTANCE TRANSFORM:Default Transform
+  Invert Plane Bound = Off
+  Lighting = On
+  Line Colour = 0, 0, 0
+  Line Colour Mode = Default
+  Line Width = 1
+  Max = 0.0
+  Min = 0.0
+  Normal = 1 , 0 , 0
+  Number of Contours = 11
+  Option = XY Plane
+  Plane Bound = None
+  Plane Type = Slice
+  Point = 0 [m], 0 [m], 0 [m]
+  Point 1 = 0 [m], 0 [m], 0 [m]
+  Point 2 = 1 [m], 0 [m], 0 [m]
+  Point 3 = 0 [m], 1 [m], 0 [m]
+  Range = Global
+  Render Edge Angle = 0 [degree]
+  Specular Lighting = On
+  Surface Drawing = Smooth Shading
+  Texture Angle = 0
+  Texture Direction = 0 , 1 , 0
+  Texture File =
+  Texture Material = Metal
+  Texture Position = 0 , 0
+  Texture Scale = 1
+  Texture Type = Predefined
+  Tile Texture = Off
+  Transform Texture = Off
+  Transparency = 0.0
+  X = 0.0 [m]
+  Y = 0.0 [m]
+  Z = 0.0 [m]
+  OBJECT VIEW TRANSFORM:
+    Apply Reflection = Off
+    Apply Rotation = Off
+    Apply Scale = Off
+    Apply Translation = Off
+    Principal Axis = Z
+    Reflection Plane Option = XY Plane
+    Rotation Angle = 0.0 [degree]
+    Rotation Axis From = 0 [m], 0 [m], 0 [m]
+    Rotation Axis To = 0 [m], 0 [m], 0 [m]
+    Rotation Axis Type = Principal Axis
+    Scale Vector = 1 , 1 , 1
+    Translation Vector = 0 [m], 0 [m], 0 [m]
+    X = 0.0 [m]
+    Y = 0.0 [m]
+    Z = 0.0 [m]
+  END
+END
+
+# Sending visibility action from ViewUtilities
+>show /PLANE:Plane 1, view=/VIEW:View 1
+
+# Sending visibility action from ViewUtilities
+>hide /PLANE:Plane 1, view=/VIEW:View 1
+
+
+>highlight regionlist=/DATA READER/CASE:Case FFF/BOUNDARY:inlet, domainlist=/\
+DATA READER/CASE:Case FFF/DOMAIN:finactuator_cl_3z.prt_finactuator_cl_3z
+
+>highlight regionlist=/DATA READER/CASE:Case FFF/BOUNDARY:inlet, domainlist=/\
+DATA READER/CASE:Case FFF/DOMAIN:finactuator_cl_3z.prt_finactuator_cl_3z
+
+>highlight regionlist=/DATA READER/CASE:Case FFF/BOUNDARY:inlet, domainlist=/\
+DATA READER/CASE:Case FFF/DOMAIN:finactuator_cl_3z.prt_finactuator_cl_3z
+
+>highlight regionlist=/DATA READER/CASE:Case FFF/BOUNDARY:inlet, domainlist=/\
+DATA READER/CASE:Case FFF/DOMAIN:finactuator_cl_3z.prt_finactuator_cl_3z
+
+>highlight regionlist=/DATA READER/CASE:Case FFF/BOUNDARY:inlet, domainlist=/\
+DATA READER/CASE:Case FFF/DOMAIN:finactuator_cl_3z.prt_finactuator_cl_3z
+
+>highlight regionlist=/DATA READER/CASE:Case FFF/BOUNDARY:inlet, domainlist=/\
+DATA READER/CASE:Case FFF/DOMAIN:finactuator_cl_3z.prt_finactuator_cl_3z
+
+CONTOUR:Contour 1
+  Apply Instancing Transform = On
+  Clip Contour = Off
+  Colour Map = Default Colour Map
+  Colour Scale = Linear
+  Colour Variable = Pressure
+  Colour Variable Boundary Values = Conservative
+  Constant Contour Colour = Off
+  Contour Range = Global
+  Culling Mode = No Culling
+  Domain List = /DOMAIN GROUP:All Domains
+  Draw Contours = On
+  Font = Sans Serif
+  Fringe Fill = On
+  Instancing Transform = /DEFAULT INSTANCE TRANSFORM:Default Transform
+  Lighting = On
+  Line Colour = 0, 0, 0
+  Line Colour Mode = Default
+  Line Width = 1
+  Location List = /PLANE:Plane 1
+  Max = 0.0 [Pa]
+  Min = 0.0 [Pa]
+  Number of Contours = 150
+  Show Numbers = Off
+  Specular Lighting = On
+  Surface Drawing = Smooth Shading
+  Text Colour = 0, 0, 0
+  Text Colour Mode = Default
+  Text Height = 0.024
+  Transparency = 0.0
+  Use Face Values = Off
+  Value List = 0 [Pa],1 [Pa]
+  OBJECT VIEW TRANSFORM:
+    Apply Reflection = Off
+    Apply Rotation = Off
+    Apply Scale = Off
+    Apply Translation = Off
+    Principal Axis = Z
+    Reflection Plane Option = XY Plane
+    Rotation Angle = 0.0 [degree]
+    Rotation Axis From = 0 [m], 0 [m], 0 [m]
+    Rotation Axis To = 0 [m], 0 [m], 0 [m]
+    Rotation Axis Type = Principal Axis
+    Scale Vector = 1 , 1 , 1
+    Translation Vector = 0 [m], 0 [m], 0 [m]
+    X = 0.0 [m]
+    Y = 0.0 [m]
+    Z = 0.0 [m]
+  END
+END
+
+# Sending visibility action from ViewUtilities
+>show /CONTOUR:Contour 1, view=/VIEW:View 1
+
+HARDCOPY:
+  Antialiasing = On
+  Hardcopy Filename = C:/r2021-05-28--09-07-10_wwhwwmxz/CFDAnalysis/AnsysFluent/AnsysFluent_Workbench_files/user_files/UAV_Pressure_Contour.png
+  Hardcopy Format = png
+  Hardcopy Tolerance = 0.0001
+  Image Height = 600
+  Image Scale = 100
+  Image Width = 600
+  JPEG Image Quality = 80
+  Screen Capture = On
+  Use Screen Size = On
+  White Background = Off
+END
+>print
+
+CONTOUR:Contour 1
+  Apply Instancing Transform = On
+  Clip Contour = Off
+  Colour Map = Default Colour Map
+  Colour Scale = Linear
+  Colour Variable = Velocity
+  Colour Variable Boundary Values = Conservative
+  Constant Contour Colour = Off
+  Contour Range = Global
+  Culling Mode = No Culling
+  Domain List = /DOMAIN GROUP:All Domains
+  Draw Contours = On
+  Font = Sans Serif
+  Fringe Fill = On
+  Instancing Transform = /DEFAULT INSTANCE TRANSFORM:Default Transform
+  Lighting = On
+  Line Colour = 0, 0, 0
+  Line Colour Mode = Default
+  Line Width = 1
+  Location List = /PLANE:Plane 1
+  Max = 0.0 [m s^-1]
+  Min = 0.0 [m s^-1]
+  Number of Contours = 150
+  Show Numbers = Off
+  Specular Lighting = On
+  Surface Drawing = Smooth Shading
+  Text Colour = 0, 0, 0
+  Text Colour Mode = Default
+  Text Height = 0.024
+  Transparency = 0.0
+  Use Face Values = Off
+  Value List = 0 [m s^-1],1 [m s^-1]
+  OBJECT VIEW TRANSFORM:
+    Apply Reflection = Off
+    Apply Rotation = Off
+    Apply Scale = Off
+    Apply Translation = Off
+    Principal Axis = Z
+    Reflection Plane Option = XY Plane
+    Rotation Angle = 0.0 [degree]
+    Rotation Axis From = 0 [m], 0 [m], 0 [m]
+    Rotation Axis To = 0 [m], 0 [m], 0 [m]
+    Rotation Axis Type = Principal Axis
+    Scale Vector = 1 , 1 , 1
+    Translation Vector = 0 [m], 0 [m], 0 [m]
+    X = 0.0 [m]
+    Y = 0.0 [m]
+    Z = 0.0 [m]
+  END
+END
+
+HARDCOPY:
+  Antialiasing = On
+  Hardcopy Filename = C:/r2021-05-28--09-07-10_wwhwwmxz/CFDAnalysis/AnsysFluent/AnsysFluent_Workbench_files/user_files/UAV_Velocity_Contour.png
+  Hardcopy Format = png
+  Hardcopy Tolerance = 0.0001
+  Image Height = 600
+  Image Scale = 100
+  Image Width = 600
+  JPEG Image Quality = 80
+  Screen Capture = On
+  Use Screen Size = On
+  White Background = Off
+END
+>print
+
+# Sending visibility action from ViewUtilities
+>hide /CONTOUR:Contour 1, view=/VIEW:View 1
+
+
+>highlight regionlist=/DATA READER/CASE:Case FFF/BOUNDARY:inlet, domainlist=/\
+DATA READER/CASE:Case FFF/DOMAIN:finactuator_cl_3z.prt_finactuator_cl_3z
+
+>highlight regionlist=/DATA READER/CASE:Case FFF/BOUNDARY:wall \
+finactuator_cl_3z.prt_finactuator_cl_3z, domainlist=/DATA READER/CASE:Case FFF/\
+DOMAIN:enclosure_enclosure
+
+STREAMLINE:Streamline 1
+  Absolute Tolerance = 0.0 [m]
+  Apply Instancing Transform = On
+  Colour = 0.75, 0.75, 0.75
+  Colour Map = Default Colour Map
+  Colour Mode = Use Plot Variable
+  Colour Scale = Linear
+  Colour Variable = Velocity
+  Colour Variable Boundary Values = Conservative
+  Cross Periodics = On
+  Culling Mode = No Culling
+  Domain List = /DOMAIN GROUP:All Domains
+  Draw Contours = Off
+  Draw Faces = On
+  Draw Lines = Off
+  Draw Streams = On
+  Draw Symbols = Off
+  Grid Tolerance = 0.01
+  Instancing Transform = /DEFAULT INSTANCE TRANSFORM:Default Transform
+  Lighting = On
+  Line Width = 1
+  Location List = /PLANE:Plane 1
+  Locator Sampling Method = Equally Spaced
+  Max = 0.0 [m s^-1]
+  Maximum Number of Items = 25
+  Min = 0.0 [m s^-1]
+  Number of Contours = 11
+  Number of Samples = 1500
+  Number of Sides = 8
+  Range = Global
+  Reduction Factor = 1.0
+  Reduction or Max Number = Max Number
+  Sample Spacing = 0.1
+  Sampling Aspect Ratio = 1
+  Sampling Grid Angle = 0 [degree]
+  Seed Point Type = Equally Spaced Samples
+  Simplify Geometry = Off
+  Specular Lighting = On
+  Stream Drawing Mode = Line
+  Stream Initial Direction = 0 , 0 , 0
+  Stream Size = 1.0
+  Stream Symbol = Ball
+  Streamline Direction = Forward
+  Streamline Maximum Periods = 20
+  Streamline Maximum Segments = 10000
+  Streamline Maximum Time = 0.0 [s]
+  Streamline Type = 3D Streamline
+  Streamline Width = 2
+  Surface Drawing = Smooth Shading
+  Surface Streamline Direction = Forward and Backward
+  Symbol Size = 1.0
+  Symbol Start Time = 10.0 [s]
+  Symbol Stop Time = -10.0 [s]
+  Symbol Time Interval = 1.0 [s]
+  Tolerance Mode = Grid Relative
+  Transparency = 0.0
+  Variable = Velocity
+  Variable Boundary Values = Conservative
+  OBJECT VIEW TRANSFORM:
+    Apply Reflection = Off
+    Apply Rotation = Off
+    Apply Scale = Off
+    Apply Translation = Off
+    Principal Axis = Z
+    Reflection Plane Option = XY Plane
+    Rotation Angle = 0.0 [degree]
+    Rotation Axis From = 0 [m], 0 [m], 0 [m]
+    Rotation Axis To = 0 [m], 0 [m], 0 [m]
+    Rotation Axis Type = Principal Axis
+    Scale Vector = 1 , 1 , 1
+    Translation Vector = 0 [m], 0 [m], 0 [m]
+    X = 0.0 [m]
+    Y = 0.0 [m]
+    Z = 0.0 [m]
+  END
+END
+
+# Sending visibility action from ViewUtilities
+>show /STREAMLINE:Streamline 1, view=/VIEW:View 1
+
+HARDCOPY:
+  Antialiasing = On
+  Hardcopy Filename = C:/r2021-05-28--09-07-10_wwhwwmxz/CFDAnalysis/AnsysFluent/AnsysFluent_Workbench_files/user_files/UAV_Velocity_Streamline.png
+  Hardcopy Format = png
+  Hardcopy Tolerance = 0.0001
+  Image Height = 600
+  Image Scale = 100
+  Image Width = 600
+  JPEG Image Quality = 80
+  Screen Capture = On
+  Use Screen Size = On
+  White Background = Off
+END
+>print
+
+
+# Session file stopped:  2021/05/24 10:31:26
+
