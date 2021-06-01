@@ -1,0 +1,3 @@
+/file/set-tui-version "21.1"
+/file/write-case "C:\Users\kowens\Documents\Kate\face-files\fluent\AnsysFluent_Test_Bench_v2021_05_0\results\r2021-05-28--09-07-10_wwhwwmxz\CFDAnalysis\AnsysFluent\AnsysFluent_Workbench_files\dp0\FFF\MECH\FFF.1.cas.h5" y 
+(cx-gui-do cx-activate-item "MenuBar*WriteSubMenu*Stop Journal")
