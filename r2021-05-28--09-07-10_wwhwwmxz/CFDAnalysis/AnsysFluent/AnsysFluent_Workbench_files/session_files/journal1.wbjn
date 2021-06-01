@@ -1,0 +1,778 @@
+# encoding: utf-8
+# 2021 R1
+SetScriptVersion(Version="21.1.216")
+template1 = GetTemplate(TemplateName="Fluid Flow")
+system1 = template1.CreateSystem()
+unitSystem1 = SetProjectUnitSystem(UnitSystemName="SI")
+Save(Overwrite=True)
+geometry1 = system1.GetContainer(ComponentName="Geometry")
+geometry1.Edit(IsSpaceClaimGeometry=True)
+geometry1.SendCommand(
+    Command="""
+import logging
+import os
+import glob
+import datetime
+############################################################
+# Global Variables
+############################################################
+
+creo_model_file_name = 'parent_assembly.asm'
+enclosure_x_pos_offset = 500.0   # mm
+enclosure_x_neg_offset = 1000.0 # mm
+enclosure_y_pos_offset = 300.0   # mm
+enclosure_y_neg_offset = 500.0   # mm
+enclosure_z_pos_offset = 200.0   # mm
+enclosure_z_neg_offset = 400.0   # mm
+
+rotate_about_x_deg = 45.0
+rotate_about_y_deg = 20.0
+rotate_about_z_deg = 40.0
+
+
+c_inlet = 'inlet'
+c_outlet = 'outlet'
+c_wall = 'wall'
+c_walls = 'walls'
+
+enclosure_x_pos_face = 'inlet'
+enclosure_x_neg_face = 'outlet'
+enclosure_y_pos_face = 'wall'
+enclosure_y_neg_face = 'wall'
+enclosure_z_pos_face = 'wall'
+enclosure_z_neg_face = 'wall'
+
+
+# The index is based on the order that the enclosure faces are created
+enclosureFaceCFDName_InFaceIndexOrder_list = []
+
+g_ProgramName = \"OpenMeta_CFDFluent_SpaceClaim_Script\"
+g_ProgramNameVersion = '2021.05.0'
+g_succeededFileName = '_SUCCEEDED_' + g_ProgramName + '.py.txt'
+g_failedFileName = '_FAILED_' + g_ProgramName + '.py.txt'
+g_logFilePath = '.\\\\log\\\\' + g_ProgramName + '.py.log'
+g_result_dir_FAILDED_file = '..\\..\\_FAILED.txt'
+g_CFDFluentInputParameters_FileName = 'CFDFluentInputParameters_from_OpenMeta.txt'
+#g_CFDFluentInputParameters_FileName = 'E:\\\\Temp\\\\scratch\\\\2020_11_25_Fluent\\\\Fluent_04_Remus\\CFDFluentInputParameters_from_OpenMeta.txt'
+
+############################################################
+# Functions
+############################################################
+
+######################################
+# Logger
+######################################
+def get_logger(in_FileName):
+
+    # create logger with 'spam_application'
+    logger = logging.getLogger(in_FileName)
+    logger.setLevel(logging.DEBUG)
+
+    # create file handler which logs even debug messages
+    if not os.path.isdir('log'):
+        os.mkdir('log')
+
+    fh = logging.FileHandler(os.path.join('log', in_FileName + '.py.log'),'w')
+    fh.setLevel(logging.DEBUG)
+
+    # create console handler with a higher log level
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.WARNING)
+
+    # create formatter and add it to the handlers
+    formatter = logging.Formatter('%(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    ch.setFormatter(formatter)
+
+    # add the handlers to the logger
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+
+    logger.info(\"=================================================\")
+    logger.info(\"New \" + in_FileName + \" execution. Version: \"+ g_ProgramNameVersion )
+    logger.info(\"=================================================\")
+    return logger
+
+##################################
+# Global logging variable
+##################################
+g_logger = get_logger(g_ProgramName)
+
+#################################################
+# Read CFDFluentInputParameters_from_OpenMeta.txt
+#################################################
+def readParametersFile(in_FileName, out_ConfigParameter_to_Value_dict):
+
+    if not os.path.exists(in_FileName):
+        raise Exception(\"File not found: \"  + in_FileName )
+
+    lines_without_comments = []
+    with open(in_FileName, 'r') as reader:
+        for line in reader:
+            line_temp_1 = line.strip()
+            if len(line_temp_1) > 0:
+                if '#' in line_temp_1:
+                    if not line_temp_1.startswith(\"#\"):      
+                        line_fields_list = line_temp_1.split('#', 1)
+                        line_temp_2 =   line_fields_list[0].strip()
+                        if len(line_temp_2) > 0:
+                            lines_without_comments.append(line_temp_2)
+                else:
+                    lines_without_comments.append(line_temp_1)
+                            
+    for line in lines_without_comments:
+        if '=' in line and line[0] != '=':
+            line_fields_list =line.split('=')
+            lval = line_fields_list[0].strip().lower()
+            rval = line_fields_list[1].strip()
+            if len(lval) > 0 and len(rval) > 0: 
+                out_ConfigParameter_to_Value_dict[lval] = rval
+            
+#################################################
+# Log configParameter_to_Value_dict
+#################################################
+def log_dict( in_Title, in_dict):
+    g_logger.info('***************************************************************************')
+    g_logger.info('************ BEGIN ' +  in_Title + ' **************')
+
+    for k, v in in_dict.items():
+        g_logger.info( 'Key: ' + k + '    Value: ' + str(v))
+
+    g_logger.info('************ END ' +  in_Title + ' *****************')
+    g_logger.info('***************************************************************************')
+
+
+######################################
+# Fuinction - Get All Bodies
+######################################
+def  getAllBodies( in_Part, out_Bodies ):
+    for item in in_Part.Components:
+        print(item.GetName())
+        for  comp in item.GetAllBodies():
+            print(comp.GetName())
+            temp_Bodies.append(comp)
+           
+#####################################
+# Function Sort Bodies
+######################################           
+# You combine bodies two at a time. 
+# Therefore, the two bodies must be touching.
+# Must sort bodies in order such that the
+# first body on the list is toching the 
+# second body.  The third body on the list
+# is touching either the first or second
+# bodies or both and so forth... 
+def sortBodies(in_Bodies, out_SortedBodies):
+    for i in range(0, len(in_Bodies) - 1):
+        for j in range(i, len(in_Bodies) - 1):
+            target_1 = Selection.Create(in_Bodies[i])
+            target_2 =  Selection.Create(in_Bodies[j+1])
+            temp_Gap = MeasureHelper.DistanceBetweenObjects(target_1,target_2)
+            print(\"Gap: \" + temp_Gap.Distance.ToString())
+            if abs(temp_Gap.Distance) > .0001:
+                print(\"Not Touching\")
+            else:
+                 if not in_Bodies[i] in out_SortedBodies:
+                     out_SortedBodies.append(in_Bodies[i])
+                 if not in_Bodies[j+1] in out_SortedBodies:
+                     out_SortedBodies.append(in_Bodies[j+1])
+
+ 
+
+############################################################
+# Main Code
+############################################################
+errorOccurred = False
+try:
+    g_logger = get_logger(g_ProgramName)
+    g_logger.info('')
+    g_logger.info('Timestamp: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))
+    g_logger.info('')
+
+    ######################################
+    # Read Config/Parameter File
+    ######################################    
+    configParameter_to_Value_dict = {}
+    readParametersFile(g_CFDFluentInputParameters_FileName , configParameter_to_Value_dict)
+
+    log_dict('CFDFluentInputParameters',configParameter_to_Value_dict)
+    
+    ############################################
+    # Set Parameters from Config/Parameter File
+    ###########################################    
+    
+    # Creo Model
+    if \"creo_model_file_name\" in configParameter_to_Value_dict:
+        creo_model_file_name = configParameter_to_Value_dict['creo_model_file_name']
+
+    # Enclosure
+    if \"enclosure_x_pos_offset\" in configParameter_to_Value_dict:
+        enclosure_x_pos_offset = float(configParameter_to_Value_dict['enclosure_x_pos_offset'])
+    
+    if \"enclosure_x_neg_offset\" in configParameter_to_Value_dict:
+        enclosure_x_neg_offset = float(configParameter_to_Value_dict['enclosure_x_neg_offset'])   
+    
+    if \"enclosure_y_pos_offset\" in configParameter_to_Value_dict:
+        enclosure_y_pos_offset = float(configParameter_to_Value_dict['enclosure_y_pos_offset'])
+
+    if \"enclosure_y_neg_offset\" in configParameter_to_Value_dict:
+        enclosure_y_neg_offset = float(configParameter_to_Value_dict['enclosure_y_neg_offset'])  
+
+    if \"enclosure_y_neg_offset\" in configParameter_to_Value_dict:
+        enclosure_y_neg_offset = float(configParameter_to_Value_dict['enclosure_y_neg_offset'])
+
+    if \"enclosure_z_pos_offset\" in configParameter_to_Value_dict:
+        enclosure_z_pos_offset = float(configParameter_to_Value_dict['enclosure_z_pos_offset'])
+        
+    if \"enclosure_z_neg_offset\" in configParameter_to_Value_dict:
+        enclosure_z_neg_offset = float(configParameter_to_Value_dict['enclosure_z_neg_offset'])
+        
+    # Rotation    
+    if \"rotate_about_x_deg\" in configParameter_to_Value_dict:
+        rotate_about_x_deg = float(configParameter_to_Value_dict['rotate_about_x_deg'])        
+        
+    if \"rotate_about_y_deg\" in configParameter_to_Value_dict:
+        rotate_about_y_deg = float(configParameter_to_Value_dict['rotate_about_y_deg'])      
+        
+    if \"rotate_about_z_deg\" in configParameter_to_Value_dict:
+        rotate_about_z_deg = float(configParameter_to_Value_dict['rotate_about_z_deg']) 
+        
+    # inlet, outlet, wall
+    if \"enclosure_x_pos_face\" in configParameter_to_Value_dict:
+        enclosure_x_pos_face  = configParameter_to_Value_dict['enclosure_x_pos_face']
+        if enclosure_x_pos_face  != c_inlet  and enclosure_x_pos_face  != c_outlet and enclosure_x_pos_face  != c_wall:
+                 raise Exception(\"Parameter file value for: enclosure_x_pos_face \"  +
+                        \" must be either \" + c_inlet + \" or \" + c_outlet + \" or \" + c_wall )
+    
+    if \"enclosure_x_neg_face\" in configParameter_to_Value_dict:
+        enclosure_x_neg_face = configParameter_to_Value_dict['enclosure_x_neg_face']
+        if enclosure_x_neg_face != c_inlet  and enclosure_x_neg_face != c_outlet and enclosure_x_neg_face != c_wall:
+                 raise Exception(\"Parameter file value for: + enclosure_x_neg_face \" +
+                        \" must be either \" + c_inlet + \" or \" + c_outlet + \" or \" + c_wall )
+             
+    if \"enclosure_y_pos_face\" in configParameter_to_Value_dict:
+        enclosure_y_pos_face = configParameter_to_Value_dict['enclosure_y_pos_face']
+        if enclosure_y_pos_face != c_inlet  and enclosure_y_pos_face != c_outlet and enclosure_y_pos_face != c_wall:
+                 raise Exception(\"Parameter file value for: + enclosure_y_pos_face \" +
+                        \" must be either \" + c_inlet + \" or \" + c_outlet + \" or \" + c_wall )    
+             
+    if \"enclosure_y_neg_face\" in configParameter_to_Value_dict:
+        enclosure_y_neg_face = configParameter_to_Value_dict['enclosure_y_neg_face']
+        if enclosure_y_neg_face != c_inlet  and enclosure_y_neg_face != c_outlet and enclosure_y_neg_face != c_wall:
+                 raise Exception(\"Parameter file value for: + enclosure_y_neg_face \" +
+                        \" must be either \" + c_inlet + \" or \" + c_outlet + \" or \" + c_wall )
+             
+    if \"enclosure_z_pos_face\" in configParameter_to_Value_dict:
+        enclosure_z_pos_face = configParameter_to_Value_dict['enclosure_z_pos_face']
+        if enclosure_z_pos_face != c_inlet  and enclosure_z_pos_face != c_outlet and enclosure_z_pos_face != c_wall:
+                 raise Exception(\"Parameter file value for: + enclosure_z_pos_face \" +
+                        \" must be either \" + c_inlet + \" or \" + c_outlet + \" or \" + c_wall )
+             
+    if \"enclosure_z_neg_face\" in configParameter_to_Value_dict:
+        enclosure_z_neg_face = configParameter_to_Value_dict['enclosure_z_neg_face']
+        if enclosure_z_neg_face != c_inlet  and enclosure_z_neg_face != c_outlet and enclosure_z_neg_face != c_wall:
+                 raise Exception(\"Parameter file value for: + enclosure_z_neg_face \" +
+                        \" must be either \" + c_inlet + \" or \" + c_outlet + \" or \" + c_wall )             
+
+    # The order must be as follows.  This is the order that enclosure faces are created
+    enclosureFaceCFDName_InFaceIndexOrder_list.append(enclosure_y_pos_face)
+    enclosureFaceCFDName_InFaceIndexOrder_list.append(enclosure_x_pos_face)
+    enclosureFaceCFDName_InFaceIndexOrder_list.append(enclosure_y_neg_face)
+    enclosureFaceCFDName_InFaceIndexOrder_list.append(enclosure_x_neg_face)
+    enclosureFaceCFDName_InFaceIndexOrder_list.append(enclosure_z_pos_face)
+    enclosureFaceCFDName_InFaceIndexOrder_list.append(enclosure_z_neg_face)
+ 
+
+    ######################################
+    # Add Creo Model
+    ######################################
+    g_logger.info('Creo Model: ' + creo_model_file_name )
+    files = glob.glob('..\\\\..\\\\' + creo_model_file_name + '.*')
+    file_suffix_int = 0  
+    file_name = \"\"
+    for fn in files:
+        g_logger.info(fn)
+        file_name_split = fn.rsplit('.',1)
+        suffix_str = file_name_split[1]
+        g_logger.info('File Suffix: ' + suffix_str )
+        if suffix_str.isdigit():
+            if int(suffix_str)  > file_suffix_int:
+                file_suffix_int = int(suffix_str)
+                file_name = fn
+        
+    g_logger.info('File Name: ' + file_name)   
+        
+    Creo_File_Path = os.path.abspath(file_name)
+    #Creo_File_Path = '..\\\\..\\\\' + file_name 
+    
+    if not os.path.exists(Creo_File_Path):
+        raise Exception(\"Error: Could not find file: \" + Creo_File_Path )
+    
+    g_logger.info('Full Path to Creo File: ' + Creo_File_Path)   
+    #Creo_File_Path = \"E:\\\\Temp\\scratch\\\\2020_11_25_Fluent\\\\Fluent_01\\parent_assembly.asm.1\"
+
+    #DocumentOpen.Execute(Creo_File_Path, FileSettings1, GetMaps(\"7765050b\"))
+    #DocumentOpen.Execute(Creo_File_Path)
+	DocumentInsert.Execute(Creo_File_Path)
+
+    ######################################
+    # Combine Bodies
+    ######################################
+
+    temp_Bodies = []
+    temp_SortedBodies = []
+
+    getAllBodies(GetRootPart(), temp_Bodies)
+    g_logger.info(\"Number of In-Sorted Bodies: \" + str(len(temp_Bodies)))
+    
+    if len(temp_Bodies) == 0:
+        raise Exception(\"No solid bodies found in imported Creo Model. \" +
+                        \"The Creo model must be an assembly of solid (not surface) models \" +
+                        \"or a sub-assembly that contains solid models.  The assembly sub-assembly\" +
+                        \"hiearchy has not bounds.\")
+        
+    
+    sortBodies(temp_Bodies, temp_SortedBodies)
+    
+    g_logger.info(\"Number of Sorted Bodies: \" + str(len(temp_SortedBodies)))
+    
+    if  len(temp_Bodies) !=  len(temp_SortedBodies):
+            raise Exception(\"The number of sorted bodies (Creo solid models) does not \" +
+                    \"equal the number in the original Creo assembly. This could be caused by the solids \" +
+                    \"not touching (i.e. gaps between parts) in the Creo assemlby.\" )
+
+
+    print()
+    for temp_Body in temp_SortedBodies:
+         print(temp_Body.GetName())
+         g_logger.info(\"Body: \" + temp_Body.GetName())
+
+    combinedBody = None
+
+    for i in range(0, len(temp_SortedBodies) - 1):
+        targets = Selection.Create(temp_SortedBodies[0], temp_SortedBodies[i+1])
+        Combine.Merge(targets)
+        combinedBody = temp_SortedBodies[0]
+        
+        
+    ######################################
+    # Rotate Combined Body
+    ######################################
+    selection =  Selection.Create(combinedBody)
+    anchorPoint = Point.Create(MM(0), MM(0), MM(0))
+    options = MoveOptions()
+
+    g_logger.info(\"Rotating Combined Body: \" +
+                           \"rotX degrees: \" + str(rotate_about_x_deg) +
+                           \"rotY degrees: \" + str(rotate_about_y_deg) +
+                          \"rotZ degrees: \" + str(rotate_about_z_deg))
+
+    # Rotate x
+    if rotate_about_x_deg > 0:
+        axis = Line.Create(anchorPoint, Direction.DirX)
+        #result = Move.Rotate(selection, axis, DEG(rotate_about_x_deg), options, Info7)  
+        result = Move.Rotate(selection, axis, DEG(rotate_about_x_deg), options)  
+        
+    # Rotate y
+    if rotate_about_y_deg > 0:
+        axis = Line.Create(anchorPoint, Direction.DirY)
+        options = MoveOptions()
+        result = Move.Rotate(selection, axis, DEG(rotate_about_y_deg), options)  
+        
+    # Rotate z
+    if rotate_about_z_deg > 0:
+        axis = Line.Create(anchorPoint, Direction.DirZ)
+        options = MoveOptions()
+        result = Move.Rotate(selection, axis, DEG(rotate_about_z_deg), options)      
+          
+    ######################################
+    # Create Enclosure 
+    ######################################
+    options = EnclosureOptions()
+    options.EnclosureType = EnclosureType.Box
+
+    g_logger.info(\"Creating Enclosure:\" +
+                            \" enclosure_x_pos_offset (mm): \" + str(enclosure_x_pos_offset) +
+                            \" enclosure_x_neg_offset (mm): \" + str(enclosure_x_neg_offset) +
+                            \" enclosure_y_pos_offset (mm): \" + str(enclosure_y_pos_offset) +
+                            \" enclosure_y_neg_offset (mm): \" + str(enclosure_y_neg_offset) +
+                            \" enclosure_z_pos_offset (mm): \" + str(enclosure_z_pos_offset) +
+                            \" enclosure_z_neg_offset (mm): \" + str(enclosure_z_neg_offset) )                          
+
+    # The following BoxEnclosureCushion API goes from xLow to xHigh, yLow, to yhigh, zLow to zHigh
+    options.EnclosureCushion = BoxEnclosureCushion(MM(enclosure_x_neg_offset),
+                                                                                    MM(enclosure_x_pos_offset),
+                                                                                    MM(enclosure_y_neg_offset),
+                                                                                    MM(enclosure_y_pos_offset),
+                                                                                    MM(enclosure_z_neg_offset),
+                                                                                    MM(enclosure_z_pos_offset))
+    selection =  Selection.Create(combinedBody)
+    resultEnclosure = Enclosure.Create(selection, options)
+    #result = Enclosure.Create(combinedBody, options)
+
+
+    ######################################
+    # Name inlet, outlet, walls
+    ######################################
+    \"\"\"
+    print(\"*****************\")
+    for createdBody in result.CreatedBodies:
+        print(createdBody.GetName())
+        
+        body_face_children =  createdBody.GetDescendants[IDesignFace]()
+        count = 0
+        for body_face_child in body_face_children:
+            #print (body_face_child.ToString())
+            print(Selection.Create(body_face_child).GetType().ToString())
+            count = count + 1
+            if count <= 6:
+                primarySelection  = Selection.Create(body_face_child)
+                secondarySelection = Selection()
+                result = NamedSelection.Create(primarySelection, secondarySelection)
+                result = NamedSelection.Rename(\"Group1\", \"zzz_\" + count.ToString())
+                pt = MeasureHelper.GetCentroid(primarySelection)
+                print( \"x: \" + pt.X.ToString(), 
+                           \"y: \" + pt.Y.ToString(), 
+                           \"z: \" + pt.Z.ToString())
+
+    print(\"*****************\")
+    \"\"\"
+
+
+    \"\"\"
+    Name inlet, outlet, walls
+    When the enclosure box is created the following is the order of the faces\"
+    enclosure_y_pos_face
+    enclosure_x_pos_face
+    enclosure_y_neg_face
+    enclosure_x_neg_face 
+    enclosure_z_pos_face
+    enclosure_z_neg_face 
+    Hopefully, this wil always be true.
+    \"\"\"
+    
+    g_logger.info(\"Creating inlet, outlet, and walls names attached to enclosure faces.\")
+    createdBodies = resultEnclosure.CreatedBodies
+    if createdBodies.Count != 1:
+        g_logger.error(\"Error: Then number of bodies created for the enclosure is not == 1, \" +
+                                \"There should be one and only one closure body. Enclosure body count: \" + str(createdBodies.Count) +
+                                \" This could be due to a programming error.  Please report to development.\")
+        raise Exception(\"Error: Then number of bodies created fpr the enclosure is not == 1, \" +
+                                \"There should be one and only one closure body. Enclosure body count: \" + str(createdBodies.Count) +
+                                \" This could be due to a programming error.  Please report to development.\")
+    
+    walls_count = 0
+    if createdBodies.Count == 1:
+        body_face_children =  createdBodies[0].GetDescendants[IDesignFace]()
+        if (body_face_children.Count >= 6):
+            # Specify inlet
+            g_logger.info(\"Defining inlet\")
+            defined_face = False
+            for i in range(0,6):
+                if enclosureFaceCFDName_InFaceIndexOrder_list[i] == c_inlet:
+                    primarySelection  = Selection.Create(body_face_children[i])
+                    secondarySelection = Selection()
+                    result = NamedSelection.Create(primarySelection, secondarySelection)
+                    result = NamedSelection.Rename(\"Group1\", c_inlet )
+                    defined_face = True
+                    break     
+            if not  defined_face:
+                g_logger.error(\"Error: Failed to define the inlet on the enclosure\")
+                raise Exception(\"Error: failed to define the inlet on the enclosure. \" +
+                                      \"This probably a programming error. Please report the error to the developers.\" )
+
+                                          
+             # outlet
+            for i in range(0,6):
+                if enclosureFaceCFDName_InFaceIndexOrder_list[i] == c_outlet:
+                    primarySelection  = Selection.Create(body_face_children[i])
+                    secondarySelection = Selection()
+                    result = NamedSelection.Create(primarySelection, secondarySelection)
+                    result = NamedSelection.Rename(\"Group1\", c_outlet )
+                    break
+            if not  defined_face:   
+                g_logger.error(\"Error: Failed to define the outlet on the enclosure\")
+                raise Exception(\"Error: failed to define the inlet on the enclosure. \" +
+                                      \"This probably a programming error. Please report the error to the developers.\" )                    
+                    
+           # walls
+
+            designFace_list = []
+            for i in range(0,6):
+                if enclosureFaceCFDName_InFaceIndexOrder_list[i] == c_wall:
+                    designFace_list.append(body_face_children[i])
+               #print(designFace_list.len )
+            if  len(designFace_list) > 0:
+                primarySelection  = Selection.Create(designFace_list)
+                secondarySelection = Selection()
+                result = NamedSelection.Create(primarySelection, secondarySelection)
+                result = NamedSelection.Rename(\"Group1\", c_walls )
+                walls_count =len(designFace_list)
+                    
+    if walls_count != 4:   
+        g_logger.error(\"Error: Failed to define 4 walls on the enclosure. Number defined: \" + str(walls_count))
+        raise Exception(\"Error: Failed to define 4 walls on the enclosure. Number defined: \" + str(walls_count) +
+                                     \" .  This probably a programming error. Please report the error to the developers.\" )                           
+                    
+    ######################################
+    # Supress Combined Body From Physics
+    ######################################
+    # Exclude items from physics
+    g_logger.info( \"Excluding combinedBody from the physics model\")
+    selection =  Selection.Create(combinedBody)
+    suppress = True
+    ViewHelper.SetSuppressForPhysics(selection, suppress)
+
+	
+	######################################
+    # Save Model
+    ######################################
+    #creo_file_name_split = creo_model_file_name.rsplit('.',1)
+    #spaceClaim_file_name = creo_file_name_split[0] + '.scdoc'
+  
+    #cwd = os.getcwd()
+    #spaceClaim_file_full_path = os.path.join(cwd, spaceClaim_file_name)
+    
+    #DocumentSave.Execute(spaceClaim_file_full_path,FileSettings1)
+    
+    #DocumentSave.Execute(r\"E:\\Temp\\scratch\\2020_11_25_Fluent\\Fluent_01\\parent_assembly.scdoc\", FileSettings1)
+
+    
+######################################
+# Handle Exceptions
+######################################
+    
+except Exception as e:
+    g_logger.error(e.message)
+    #print(\"Error\" + e.message)
+    failed_File = open(g_failedFileName, 'a')
+    failed_File.write(\"Error\" + e.message.ToString())
+    failed_File.write('  See ' + g_logFilePath + ' for more information.')
+    failed_File.close()
+    # Don't write failed file to higher level, for a PET this is one directory higher.
+    # Deal with this in the bat or calling python file.
+    #failed_File = open(g_result_dir_FAILDED_file, 'a')
+    #failed_File.write(\"Error\" + e.message)
+    #failed_File.write('  See .Analysis/OpenProp/' +  g_logFilePath + ' for more information.')
+    #failed_File.close()
+    errorOccurred = True
+    
+######################################
+# Write Success File
+###################################### 
+    
+if not errorOccurred:
+    succeeded_File = open(g_succeededFileName, 'w')
+    succeeded_File.write('Timestamp: {:%Y-%m-%d %H:%M:%S}\\n'.format(datetime.datetime.now()))
+    succeeded_File.write(g_ProgramName + \".py succeeded.  See \" + g_logFilePath + \" for more information.\")
+    succeeded_File.close()
+
+    g_logger.info('')
+    g_logger.info('Timestamp: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))
+    g_logger.info('')
+    g_logger.info(g_ProgramName + '.py succeeded.')""",
+    Language="Python")
+Save(Overwrite=True)
+meshComponent1 = system1.GetComponent(Name="Mesh")
+meshComponent1.Refresh()
+mesh1 = system1.GetContainer(ComponentName="Mesh")
+mesh1.Edit()
+mesh1.SendCommand(
+    Command="""#---------------------------------Mesh Sizing-----------------------------------
+Mesh_Element_Size = \"50\"
+Mesh_Max_Size = \"70\"
+Mesh_Curvature_Normal_Angle = \"5\"
+#Body_Of_Influence_Element_size = \"25\"
+
+#---------------------------------Mesh Sizing-----------------------------------
+#add mesh sizing
+
+mesh = Model.Mesh
+mesh.CurvatureNormalAngle = Quantity( Mesh_Curvature_Normal_Angle+\" [deg]\")
+mesh.ElementSize = Quantity(Mesh_Element_Size+ \" [mm]\")
+mesh.MaximumSize = Quantity(Mesh_Max_Size + \" [mm]\")
+
+
+# Update Mesh
+Model.Mesh.Update()
+#mesh.Update()
+#mesh.Update()""",
+    Language="Python")
+mesh1.Exit()
+Save(Overwrite=True)
+setupComponent1 = system1.GetComponent(Name="Setup")
+setupComponent1.Refresh()
+setup1 = system1.GetContainer(ComponentName="Setup")
+fluentLauncherSettings1 = setup1.GetFluentLauncherSettings()
+fluentLauncherSettings1.SetEntityProperties(Properties=Set(EnvPath={}, Precision="Double", NumberOfProcessors=4, RunParallel=True))
+setup1.Edit()
+setup1.SendCommand(Command='(cx-gui-do cx-activate-tab-index "NavigationPane*Frame1(TreeTab)" 0)(cx-gui-do cx-activate-tab-index "NavigationPane*Frame1(TreeTab)" 1)')
+setup1.SendCommand(Command="""/file/set-tui-version \"20.1\"
+
+;*********************************
+;  Create Fluid Material
+;*********************************
+/define/materials copy fluid water-liquid q
+
+;***************************************
+;  Define Enclosure Boundary Conditions
+;***************************************
+; Prompts
+;	material-name [air]> water-liquid
+;	invalid command [water-liquid]
+;	Specify source terms? [no] 
+;	Specify fixed values? [no] 
+;	Frame Motion? [no] 
+;	Use Profile for Reference Frame X-Origin of Rotation-Axis? [no] 
+;	Reference Frame X-Origin of Rotation-Axis (m) [0] 
+;	Use Profile for Reference Frame Y-Origin of Rotation-Axis? [no] 
+;	Reference Frame Y-Origin of Rotation-Axis (m) [0] 
+;	Use Profile for Reference Frame Z-Origin of Rotation-Axis? [no] 
+;	Reference Frame Z-Origin of Rotation-Axis (m) [0] 
+;	Use Profile for Reference Frame X-Component of Rotation-Axis? [no] 
+;	Reference Frame X-Component of Rotation-Axis [0] 
+;	Use Profile for Reference Frame Y-Component of Rotation-Axis? [no] 
+;	Reference Frame Y-Component of Rotation-Axis [0] 
+;	Use Profile for Reference Frame Z-Component of Rotation-Axis? [no] 
+;	Reference Frame Z-Component of Rotation-Axis [1] 
+;	Mesh Motion? [no] 
+;	Enter yes or no to continue [no] 
+;	Laminar zone? [no] 
+;	Porous zone? [no] 
+;	3D Fan Zone? [no] closure y water-liquid no no no no 0. no 0. no 0. no 0 no 1 no 0 no no no no no q
+
+/define/boundary-conditions/fluid enclosure_enclosure y water-liquid no no no no 0. no 0. no 0. no 0 no 1 no 0 no no no no no q
+
+;***********************************
+;  Define Inlet Boundary Conditions
+;***********************************
+; Prompts
+;	> /define/boundary-conditions/velocity-inlet
+;	(inlet)
+;	zone id/name [inlet] 
+;	Velocity Specification Method: Magnitude and Direction [no] 
+;	Velocity Specification Method: Components [no] 
+;	Velocity Specification Method: Magnitude, Normal to Boundary [yes] 
+;	Reference Frame: Absolute [yes] 
+;	Use Profile for Velocity Magnitude? [no] 
+;	Velocity Magnitude (m/s) [0] 4.21
+;	Use Profile for Supersonic/Initial Gauge Pressure? [no] 
+;	Supersonic/Initial Gauge Pressure (pascal) [0] 
+;	Turbulent Specification Method: K and Omega [no] 
+;	Turbulent Specification Method: Intensity and Length Scale [no] 
+;	Turbulent Specification Method: Intensity and Viscosity Ratio [yes] 
+;	Turbulent Intensity (%) [5] 
+;	Turbulent Viscosity Ratio [10] 
+
+/define/boundary-conditions/velocity-inlet inlet no no yes yes no 4.21 no 0. no no yes 5 10 q
+
+;***********************************
+;  Define Wall Boundary Conditions
+;***********************************
+;	> /define/boundary-conditions/wall
+;	(wall-enclosure_enclosure walls)
+;	zone id/name [wall-enclosure_enclosure] 
+;	Wall Motion [motion-bc-stationary]: Change current value? [no] 
+;	Shear Boundary Condition [shear-bc-noslip]: Change current value? [no] 
+;	Wall Surface Roughness [rough-bc-standard]: Change current value? [no] 
+;	Use Profile for Wall Roughness Height? [no] 
+;	Wall Roughness Height (m) [0] 
+;	Use Profile for Wall Roughness Constant? [no] 
+;	Wall Roughness Constant [0.5] 
+
+/define/boundary-conditions/wall walls no yes shear-bc-spec-shear no no 0. no 0.5 no 0. no 0. no 0. q
+
+;***********************************
+;  Define Reference Values
+;***********************************
+/report/reference-values/area .03 q
+/report/reference-values/length 2.6 q
+/report/reference-values/velocity 4 q
+
+;*************************************************************************************
+;**********************************  Report Files ************************************
+;*********************************
+;  Report File - Drag Force
+;*********************************
+; In the /solve/re... line below, if you enter a path such as ..\\..\\..\\drag_force_report.out 
+; the resulting message when the command us entered via the UI is  
+; \"The paths specified for report files will be ignored and files will be saved in project directory.\"
+; Also, an absolute path did not work.
+/solve/report-files/add Report_File_Drag_Force file-name  .\\drag_force_report.out q
+
+;*********************************
+;  Report File - Drag Coefficient
+;*********************************
+/solve/report-files/add Report_File_Drag_Coefficient file-name  .\\drag_coefficient_report.out q
+
+;*********************************
+;  Report File - Lift Force
+;*********************************
+/solve/report-files/add Report_File_Lift_Force file-name  .\\lift_force_report.out q
+
+;*********************************
+;  Report File - Moment
+;*********************************
+/solve/report-files/add Report_File_Moment file-name  .\\moment_report.out q
+
+;*****************************************************************************************
+;**********************************  Report Definitions **********************************
+;*********************************
+;  Report Definition - Drag Force
+;*********************************
+; Create Drag Force Report with the vector defining the direction of the force and the zone
+; In the following, force is for drag force
+/solve/report-definitions/add Report_Definition_Drag_Force force force-vector -1 0 0 thread-names wall-enclosure_enclosure () q
+; Add wall-enclosure_enclosure, this is the body for which we want to compute drag force, which would normally be enclosure_enclosure 
+/solve/report-definitions/edit Report_Definition_Drag_Force thread-names wall-enclosure_enclosure () q
+
+;***************************************
+;  Report Definition - Drag Coefficient
+;***************************************
+; Create Drag Coefficient Report with the vector defining the direction of the force and the zone
+; In the following, drag is for drag coefficient
+/solve/report-definitions/add Report_Definition_Drag_Coefficient drag force-vector -1 0 0 thread-names wall-enclosure_enclosure () q
+; Add wall-enclosure_enclosure, this is the body for which we want to compute the drag, which would normally be enclosure_enclosure 
+/solve/report-definitions/edit Report_Definition_Drag_Coefficient thread-names wall-enclosure_enclosure () q
+
+;*********************************
+;  Report Definition - Lift Force
+;*********************************
+; Create Lift Force Report with the vector defining the direction of the force and the zone
+; In the following, force is for lift force
+/solve/report-definitions/add Report_Definition_Lift_Force force force-vector 0 0 -1 thread-names wall-enclosure_enclosure () q
+; Add wall-enclosure_enclosure, this is the body for which we want to compute lift force, which would normally be enclosure_enclosure 
+/solve/report-definitions/edit Report_Definition_Lift_Force thread-names wall-enclosure_enclosure () q
+
+;*********************************
+;  Report Definition - Moment
+;*********************************
+; Create Moment Report with the vector defining the moment arm and the zone
+/solve/report-definitions/add Report_Definition_Moment moment mom-center 0 0 0 mom-axis  0 1 0 thread-names wall-enclosure_enclosure () q
+; Add wall-enclosure_enclosure, this is the body for which we want to compute the moment, which would normally be enclosure_enclosure 
+/solve/report-definitions/edit Report_Definition_Moment thread-names wall-enclosure_enclosure () q
+
+;******************************************************************************************
+;******************************  Attach Report Definitions ********************************
+;********************************************
+;  Attach Report File to Report Definitions
+;********************************************
+/solve/report-files/edit Report_File_Drag_Force report-defs Report_Definition_Drag_Force () q
+/solve/report-files/edit Report_File_Lift_Force report-defs Report_Definition_Drag_Coefficient () q
+/solve/report-files/edit Report_File_Drag_Coefficient report-defs Report_Definition_Lift_Force () q
+/solve/report-files/edit Report_File_Moment report-defs Report_Definition_Moment () q
+
+;*********************************
+;  Solve
+;*********************************
+/solve/initialize/hyb-initialization q
+/solve/iterate 40 q
+ 
+;/close-fluent
+""")
+Save(Overwrite=True)
+system1.Refresh()
+results1 = system1.GetContainer(ComponentName="Results")
+results1.Edit()
+results1.SendCommand(Command=">readsession filename = C:/Users/kowens/Documents/Kate/face-files/fluent/AnsysFluent_Test_Bench_v2021_05_0/results/r2021-05-28--09-07-10_wwhwwmxz/CFDAnalysis/AnsysFluent/OpenMeta_CFDFluent_CFDPost_Script.cse")
+Save(Overwrite=True)

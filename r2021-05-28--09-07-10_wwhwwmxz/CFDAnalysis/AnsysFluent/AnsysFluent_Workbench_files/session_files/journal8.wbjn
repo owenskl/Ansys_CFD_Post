@@ -1,0 +1,36 @@
+# encoding: utf-8
+# 2021 R1
+SetScriptVersion(Version="21.1.216")
+RunScript(FilePath="C:/r2021-05-28--09-07-10_wwhwwmxz/CFDAnalysis/AnsysFluent/CFD_Post_Workbench_Script.wbjn")
+system1 = GetSystem(Name="FFF")
+results1 = system1.GetContainer(ComponentName="Results")
+results1.SendCommand(Command="""HARDCOPY:
+Antialiasing = On
+Hardcopy Filename = C:/Users/kowens/Documents/Kate/face-files/fluent/AnsysFluent_Test_Bench_v2021_05_0/results/r2021-05-28--09-07-10_wwhwwmxz/CFDAnalysis/AnsysFluent/AnsysFluent_Workbench_files/user_files/FFF.png
+Hardcopy Format = png
+Hardcopy Tolerance = 0.0001
+Image Height = 600
+Image Scale = 100
+Image Width = 600
+JPEG Image Quality = 80
+Screen Capture = On
+Use Screen Size = On
+White Background = Off
+END
+>print""")
+results1.SendCommand(Command="""HARDCOPY:
+Antialiasing = On
+Hardcopy Filename = C:/r2021-05-28--09-07-10_wwhwwmxz/CFDAnalysis/AnsysFluent/AnsysFluent_Workbench_files/user_files/FFF.png
+Hardcopy Format = png
+Hardcopy Tolerance = 0.0001
+Image Height = 600
+Image Scale = 100
+Image Width = 600
+JPEG Image Quality = 80
+Screen Capture = On
+Use Screen Size = On
+White Background = Off
+END
+>print""")
+results1.Exit()
+Save(Overwrite=True)
